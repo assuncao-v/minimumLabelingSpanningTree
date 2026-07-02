@@ -1,16 +1,17 @@
 #ifndef GRAPH_HPP
 #define GRAPH_HPP
-
+ 
 using namespace std;
-
+ 
 #include <iostream>
 #include <vector>
 #include <stack>
 #include <queue>
 #include <string>
 #include <map>
+#include <set>
 #include <utility>
-
+ 
 class No{
     public:
         int id;
@@ -20,15 +21,15 @@ class No{
         vector<No*> vizinhos;
         No(int id);
 };
-
-
+ 
+ 
 class Graph{
     private:
         int num_vertices;
         bool direcionado;
         vector<No*> nos;
         map<pair<int,int>, double> pesos;
-
+ 
         void limpar_visitados();
         No* buscar_no(int id);
     public:
@@ -48,6 +49,10 @@ class Graph{
         void show();
         string kruskal();
         void imprimir();
+ 
+        vector<int> mvca();
+ 
+        bool validarCobertura(const vector<int>& cobertura);
 };
-
+ 
 #endif
