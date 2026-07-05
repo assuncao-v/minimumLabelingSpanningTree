@@ -112,6 +112,14 @@ add_executable(grafo_mvca ${ARQ_MAIN_CPP})
 target_link_libraries(grafo_mvca PRIVATE grafo)
 
 # ---------------------------------------------------------------------------
+# Gerador de instâncias MLSTP (standalone, sem dependência da lib grafo)
+# ---------------------------------------------------------------------------
+
+add_executable(gerador_mlstp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/generator/generator.cpp
+)
+
+# ---------------------------------------------------------------------------
 # Testes (opcional, habilitado por padrão; requer CTest)
 # ---------------------------------------------------------------------------
 
