@@ -111,6 +111,44 @@ Instancia: instancias/instancia02.txt  | vertices=100  arestas=990  rotulos=25  
 
 ---
 
+## Como Testar
+
+### Teste rápido (uma instância)
+
+Verifique se a saída da instância 01 bate com o resultado esperado:
+
+```bash
+./build/bin/grafo_mvca 2>&1 | head -1
+```
+
+Saída esperada:
+```
+Instancia: instancias/instancia01.txt  | vertices=100  arestas=990  rotulos=25  | Rotulos utilizados: 3
+```
+
+### Teste completo (todas as instâncias)
+
+```bash
+./build/bin/grafo_mvca
+```
+
+Verifique se todas as 20 linhas aparecem sem erro e os rótulos utilizados batem com a tabela de resultados abaixo.
+
+### Verificar reprodutibilidade
+
+Como o gerador usa seed fixa, rodar `gerador_mlstp` duas vezes deve produzir arquivos idênticos:
+
+```bash
+cd instancias
+../build/bin/gerador_mlstp
+md5sum instancia01.txt   # anote o hash
+
+../build/bin/gerador_mlstp
+md5sum instancia01.txt   # deve ser igual ao anterior
+```
+
+---
+
 ## Resultados
 
 | Instância | n | m | l | Rótulos usados |
