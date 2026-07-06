@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(GrafoMVCA
+project(MLSTP
     VERSION 1.0.0
-    DESCRIPTION "Estrutura de grafo em lista de adjacencia com algoritmo MVCA"
+    DESCRIPTION "Heurística gulosa para o Minimum Labeling Spanning Tree Problem"
     LANGUAGES CXX
 )
 
@@ -91,7 +91,7 @@ localizar_fonte("main.cpp"            ARQ_MAIN_CPP)
 get_filename_component(DIR_INCLUDE ${ARQ_GRAPH_HPP} DIRECTORY)
 
 # ---------------------------------------------------------------------------
-# Biblioteca: grafo (No, Graph, MVCA, Kruskal, etc.)
+# Biblioteca: grafo (estrutura de grafo, Union-Find e heurística MLSTP)
 # ---------------------------------------------------------------------------
 
 add_library(grafo
@@ -102,11 +102,12 @@ add_library(grafo
 
 target_include_directories(grafo PUBLIC
     $<BUILD_INTERFACE:${DIR_INCLUDE}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/disjoint-set-union>
     $<INSTALL_INTERFACE:include>
 )
 
 # ---------------------------------------------------------------------------
-# Executável principal (demo do MVCA)
+# Executável principal (lê instâncias e executa a heurística MLSTP)
 # ---------------------------------------------------------------------------
 
 add_executable(grafo_mvca ${ARQ_MAIN_CPP})
@@ -153,6 +154,6 @@ install(TARGETS grafo grafo_mvca
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-install(FILES graph.hpp
+install(FILES ${ARQ_GRAPH_HPP}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
