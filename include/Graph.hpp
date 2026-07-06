@@ -1,16 +1,16 @@
+
 #ifndef GRAPH_HPP
 #define GRAPH_HPP
- 
-using namespace std;
  
 #include <iostream>
 #include <vector>
 #include <stack>
 #include <queue>
 #include <string>
-#include <map>
 #include <set>
 #include <utility>
+#include <map>
+using namespace std;
  
 class No{
     public:
@@ -22,6 +22,10 @@ class No{
         No(int id);
 };
  
+struct Edge {
+    int u, v;
+    double label;
+};
  
 class Graph{
     private:
@@ -35,7 +39,10 @@ class Graph{
     public:
         Graph(bool direcionado = false);
         ~Graph();
-        void adicionar_aresta(int u, int v, bool dir = false);
+        map<pair<int,int>, double> getPesos() const { return pesos; }
+        const vector<No*>& getNos() const { return nos; }
+        int getNumVertices() const { return num_vertices; }
+        void adicionar_aresta(int u, int v, double weight, bool dir = false);
         bool insertVertex(int vertex);
         bool removeVertex(int vertex);
         bool insertEdge(int outputVertex, int inputVertex);
@@ -49,10 +56,16 @@ class Graph{
         void show();
         string kruskal();
         void imprimir();
+        void imprimir(std::ostream& os);
  
         vector<int> mvca();
- 
         bool validarCobertura(const vector<int>& cobertura);
+        void cutCycles(const std::vector<Edge>& arestas);
+ 
+        string minimumLabelingSpanningTree();
 };
  
-#endif
+void contructGraphFromEdges(Graph& graph, const std::vector<Edge>& edges);
+void listofEdges(const Graph& graph, std::vector<Edge>& edges);
+
+#endif // GRAPH_HPP

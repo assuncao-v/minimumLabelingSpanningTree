@@ -1,0 +1,427 @@
+\documentclass{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{tikz}
+
+\usetheme{Madrid}
+\usecolortheme{beaver}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\lstset{
+    language=C++,
+    basicstyle=\ttfamily\scriptsize,
+    keywordstyle=\color{blue}\bfseries,
+    breaklines=true
+}
+
+\title{Problema da Árvore Geradora com Número Mínimo de Rótulos}
+\subtitle{Trabalho Prático -- DCC059 | Teoria dos Grafos}
+
+\author{
+    Rian César Quintanilha \and
+    Isaac Dizolele Kapela João \and
+    Vítor Assunção dos Santos \and
+    Welder Salvador Victor
+}
+
+\institute{Universidade Federal de Juiz de Fora (UFJF)}
+\date{Julho de 2026}
+
+\begin{document}
+
+% ============================================================
+% CAPA
+% ============================================================
+
+\begin{frame}
+    \titlepage
+\end{frame}
+
+% ============================================================
+% ROTEIRO
+% ============================================================
+
+\begin{frame}{Roteiro}
+    \tableofcontents
+\end{frame}
+
+% ============================================================
+\section{Divisão das Tarefas}
+% ============================================================
+
+\begin{frame}{Divisão das Tarefas}
+
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{p{6.8cm} p{3.8cm}}
+\toprule
+\textbf{Atividade} & \textbf{Responsável} \\
+\midrule
+Estrutura do grafo (lista de adjacência, CRUD) & Welder e Vítor \\
+\addlinespace
+Heurística gulosa para o MLSTP & Welder e Vítor \\
+\addlinespace
+Union-Find, remoção de ciclos e implementação do MLSTP & Rian \\
+\addlinespace
+Geração das 20 instâncias de teste & Isaac \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{frame}
+
+% ============================================================
+\section{Definição do Problema}
+% ============================================================
+
+\begin{frame}{Definição do Problema}
+
+\begin{columns}[T]
+
+\column{0.55\textwidth}
+    Seja $G = (V, E)$ um grafo conexo não direcionado onde cada aresta $e \in E$ possui um rótulo $\ell(e) \in L$.
+
+    \vspace{0.4cm}
+
+    O \textbf{MLSTP} consiste em encontrar uma árvore geradora $T$ que minimize o número de rótulos distintos:
+
+    \[
+        \min \left|\{\ell(e) \mid e \in E_T\}\right|
+    \]
+
+    \begin{alertblock}{Complexidade}
+        NP-difícil — heurísticas são necessárias para instâncias grandes.
+    \end{alertblock}
+
+\column{0.42\textwidth}
+    \begin{block}{Aplicações}
+        \begin{itemize}
+            \item Redes de comunicação com múltiplas tecnologias
+            \item Redes de transporte
+            \item Distribuição de energia
+            \item Infraestrutura com restrições de compatibilidade
+        \end{itemize}
+    \end{block}
+
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+\section{Estrutura de Dados}
+% ============================================================
+
+\begin{frame}{Estrutura de Dados: Grafo}
+
+\begin{columns}[T]
+
+\column{0.48\textwidth}
+    \begin{block}{Classe \texttt{No} (vértice)}
+        \begin{itemize}
+            \item \texttt{id} — identificador
+            \item \texttt{visitado} — flag para buscas
+            \item \texttt{grau\_entrada}, \texttt{grau\_saida}
+            \item \texttt{vector<No*> vizinhos}
+        \end{itemize}
+    \end{block}
+
+    \vspace{0.3cm}
+
+    \begin{block}{Struct \texttt{Edge}}
+        \begin{itemize}
+            \item \texttt{int u, v} — extremos
+            \item \texttt{double label} — rótulo
+        \end{itemize}
+    \end{block}
+
+\column{0.48\textwidth}
+    \begin{block}{Classe \texttt{Graph}}
+        \begin{itemize}
+            \item \texttt{vector<No*> nos}
+            \item \texttt{bool direcionado}
+        \end{itemize}
+    \end{block}
+
+    \vspace{0.3cm}
+
+    \begin{exampleblock}{Representação}
+        Lista de adjacência — os rótulos são armazenados na \texttt{struct Edge} e associados às arestas durante a construção do grafo.
+    \end{exampleblock}
+
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+
+\begin{frame}{Métodos do Grafo}
+
+\begin{columns}[T]
+
+\column{0.48\textwidth}
+    \begin{block}{Operações}
+        \begin{itemize}
+            \item \texttt{insertVertex / removeVertex}
+            \item \texttt{insertEdge / removeEdge}
+            \item \texttt{existEdge / changeWeight}
+        \end{itemize}
+    \end{block}
+
+    \vspace{0.2cm}
+
+    \begin{block}{Consultas}
+        \begin{itemize}
+            \item \texttt{verifyAdjacency}
+            \item \texttt{calculateDegree}
+            \item \texttt{listNeighbors}
+        \end{itemize}
+    \end{block}
+
+\column{0.48\textwidth}
+    \begin{block}{Algoritmos}
+        \begin{itemize}
+            \item \texttt{contructGraphFromEdges()} — constrói o grafo a partir de arestas rotuladas
+            \item \texttt{cutCycles()} — remove ciclos via Union-Find
+            \item \texttt{minimumLabelingSpanningTree()} — heurística principal do MLSTP
+        \end{itemize}
+    \end{block}
+
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+\section{Union-Find}
+% ============================================================
+
+\begin{frame}{Union-Find (Disjoint Set Union)}
+
+\begin{columns}[T]
+
+\column{0.48\textwidth}
+    \begin{block}{\texttt{find(x)}}
+        Retorna a raiz do conjunto de $x$.\\[0.2cm]
+        \textbf{Otimização:} path compression — aponta o nó direto para a raiz, achatando a árvore em chamadas futuras.
+    \end{block}
+
+    \vspace{0.3cm}
+
+    \begin{block}{\texttt{unite(x, y)}}
+        Une os conjuntos de $x$ e $y$.\\[0.2cm]
+        Retorna \texttt{false} se já pertencem ao mesmo conjunto $\Rightarrow$ \textbf{ciclo detectado}.\\[0.2cm]
+        \textbf{Otimização:} union by rank — une a árvore menor sob a maior.
+    \end{block}
+
+\column{0.48\textwidth}
+    \begin{exampleblock}{Uso no projeto}
+        \textbf{\texttt{cutCycles()}}\\
+        Percorre as arestas do subgrafo gerado pela heurística e remove as que formariam ciclo, garantindo que o resultado final seja uma árvore geradora válida.
+    \end{exampleblock}
+
+    \vspace{0.3cm}
+
+    \begin{alertblock}{Complexidade}
+        Quase linear: $O(m \cdot \alpha(n))$, onde $\alpha$ é a função inversa de Ackermann.
+    \end{alertblock}
+
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+\section{Heurística para o MLSTP}
+% ============================================================
+
+\begin{frame}{Heurística Gulosa para o MLSTP}
+
+\begin{columns}[T]
+
+\column{0.48\textwidth}
+    \begin{block}{Ideia central}
+        A cada passo, escolher o rótulo que cobre o \textbf{maior número de vértices ainda não cobertos}.
+    \end{block}
+
+    \vspace{0.3cm}
+
+    \textbf{Passos}
+    \begin{enumerate}
+        \item Agrupar arestas por rótulo.
+        \item Enquanto houver vértices não cobertos:
+        \begin{itemize}
+            \item Calcular o ganho de cada rótulo.
+            \item Selecionar o de maior ganho.
+            \item Inserir suas arestas no subgrafo.
+        \end{itemize}
+        \item Chamar \texttt{cutCycles()} para eliminar ciclos.
+    \end{enumerate}
+
+\column{0.48\textwidth}
+    \begin{exampleblock}{Resultado}
+        Subgrafo $\tilde{G} = (V,\, \tilde{E},\, \tilde{L})$ onde:
+        \begin{itemize}
+            \item $V$ — todos os vértices
+            \item $\tilde{L}$ — rótulos selecionados
+            \item $\tilde{E}$ — arestas que formam a árvore geradora
+        \end{itemize}
+    \end{exampleblock}
+
+    \vspace{0.3cm}
+
+    \begin{alertblock}{Característica}
+        Heurística gulosa — não garante ótimo global, mas produz soluções de boa qualidade com baixo custo computacional.
+    \end{alertblock}
+
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+\section{Geração das Instâncias}
+% ============================================================
+
+
+\begin{frame}{Procedimento de Geração (Xiong, 2005)}
+
+\begin{columns}[T]
+
+\column{0.52\textwidth}
+
+    \textbf{Parâmetros de entrada}
+    \begin{itemize}
+        \item $n$ — número de vértices
+        \item $\ell$ — número de rótulos disponíveis
+        \item \textit{seed} — garante reprodutibilidade
+    \end{itemize}
+
+    \vspace{0.3cm}
+
+    \textbf{Passos}
+    \begin{enumerate}
+        \item Calcular $m$ (número de arestas da instância)
+        \item Gerar \textbf{árvore geradora aleatória} com $n$ vértices \\ $\rightarrow$ conecta todos com $n-1$ arestas
+        \item Sortear arestas adicionais sem repetição até completar $m$
+        \item Atribuir rótulo aleatório em $[1, \ell]$ a cada aresta
+    \end{enumerate}
+
+\column{0.45\textwidth}
+
+    \begin{alertblock}{Por que a árvore geradora primeiro?}
+        Sorteio puramente aleatório de $m$ pares pode deixar vértices isolados.
+
+        \vspace{0.2cm}
+
+        A árvore garante conexidade com $n-1$ arestas. As demais arestas adicionam ciclos, mas nunca desconectam o grafo.
+    \end{alertblock}
+
+    \vspace{0.3cm}
+
+    \begin{exampleblock}{Reprodutibilidade}
+        Usando \texttt{std::mt19937} com seed fixa, a mesma seed sempre gera a mesma instância.
+    \end{exampleblock}
+
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+
+\begin{frame}{As 20 Instâncias Geradas}
+
+\begin{columns}[T]
+
+\column{0.55\textwidth}
+
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.15}
+\footnotesize
+\begin{tabular}{lccr}
+\toprule
+\textbf{Instância} & $n$ & $\ell$ & $m$ \\
+\midrule
+01 -- 02 & 100  & 25  & 990     \\
+03 -- 04 & 100  & 25  & 2.475   \\
+05       & 100  & 25  & 3.960   \\
+\midrule
+06 -- 07 & 200  & 50  & 3.980   \\
+08 -- 09 & 200  & 50  & 9.950   \\
+10       & 200  & 50  & 15.920  \\
+\midrule
+11 -- 12 & 500  & 125 & 24.950  \\
+13 -- 14 & 500  & 125 & 62.375  \\
+15       & 500  & 125 & 99.800  \\
+\midrule
+16 -- 17 & 1000 & 250 & 99.900  \\
+18 -- 19 & 1000 & 250 & 249.750 \\
+20       & 1000 & 250 & 399.600 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\column{0.42\textwidth}
+
+    \begin{block}{Critério de variação}
+        \begin{itemize}
+            \item 4 tamanhos de grafo: \\ $n \in \{100, 200, 500, 1000\}$
+            \item 4 tamanhos de rótulos: \\ $\ell \in \{25, 50, 125, 250\}$
+            \item 2 seeds por combinação
+        \end{itemize}
+    \end{block}
+
+    \vspace{0.2cm}
+
+    \begin{exampleblock}{Escala}
+        De 990 arestas (instância pequena, esparsa) até 399.600 arestas (instância grande, densa).
+    \end{exampleblock}
+
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+\section{Conclusão}
+% ============================================================
+
+\begin{frame}{Conclusão}
+
+    \textbf{O que foi entregue}
+    \begin{itemize}
+        \item Estrutura de grafo completa em lista de adjacência
+        \item Union-Find com path compression e union by rank
+        \item Heurística gulosa para o MLSTP
+        \item Gerador de instâncias seguindo Xiong (2005)
+        \item 20 instâncias de teste cobrindo diferentes tamanhos e densidades
+    \end{itemize}
+
+\end{frame}
+
+% ============================================================
+
+\begin{frame}
+    \begin{center}
+        {\LARGE Obrigado!}\\[0.8cm]
+        {\large Dúvidas?}\\[0.8cm]
+
+        \begin{columns}[c]
+        \column{0.5\textwidth}
+            \centering
+            \textbf{Repositório}\\[0.2cm]
+            \footnotesize\url{https://github.com/isaac-kapela/trabalho-final-grafos}
+
+        \column{0.5\textwidth}
+            \centering
+            \textbf{Relatório}\\[0.2cm]
+            \footnotesize\url{https://www.overleaf.com/project/6a4adfd6087b1cdc622e98cc}
+        \end{columns}
+    \end{center}
+\end{frame}
+
+\end{document}

@@ -1,0 +1,8 @@
+\babel@toc {brazil}{}\relax 
+\beamer@sectionintoc {1}{Divisão das Tarefas}{3}{0}{1}
+\beamer@sectionintoc {2}{Definição do Problema}{4}{0}{2}
+\beamer@sectionintoc {3}{Estrutura de Dados}{5}{0}{3}
+\beamer@sectionintoc {4}{Union-Find}{7}{0}{4}
+\beamer@sectionintoc {5}{Heurística para o MLSTP}{8}{0}{5}
+\beamer@sectionintoc {6}{Geração das Instâncias}{9}{0}{6}
+\beamer@sectionintoc {7}{Conclusão}{11}{0}{7}

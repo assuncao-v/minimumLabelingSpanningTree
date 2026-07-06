@@ -97,6 +97,7 @@ get_filename_component(DIR_INCLUDE ${ARQ_GRAPH_HPP} DIRECTORY)
 add_library(grafo
     ${ARQ_GRAPH_CPP}
     ${ARQ_GRAPH_HPP}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/disjoint-set-union/UnionFind.cpp
 )
 
 target_include_directories(grafo PUBLIC

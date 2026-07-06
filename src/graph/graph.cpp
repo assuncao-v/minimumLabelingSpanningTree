@@ -1,4 +1,5 @@
-#include "Graph.hpp"
+#include "../../include/Graph.hpp"
+#include "../disjoint-set-union/UnionFind.h"
 #include <algorithm>
 #include <functional>
 #include <sstream>
@@ -62,7 +63,7 @@ bool Graph::removeVertex(int vertex) {
  
 // ============================== Arestas ==============================
  
-void Graph::adicionar_aresta(int u, int v, bool dir) {
+void Graph::adicionar_aresta(int u, int v, double weight, bool dir) {
     No* nu = buscar_no(u);
     No* nv = buscar_no(v);
     if (nu == nullptr) { insertVertex(u); nu = buscar_no(u); }
@@ -71,13 +72,13 @@ void Graph::adicionar_aresta(int u, int v, bool dir) {
     nu->vizinhos.push_back(nv);
     nu->grau_saida++;
     nv->grau_entrada++;
-    pesos[{u, v}] = 1.0;
+    pesos[{u, v}] = weight;
  
     if (!dir) {
         nv->vizinhos.push_back(nu);
         nv->grau_saida++;
         nu->grau_entrada++;
-        pesos[{v, u}] = 1.0;
+        pesos[{v, u}] = weight;
     }
 }
  
@@ -186,6 +187,19 @@ void Graph::imprimir() {
     }
 }
  
+void Graph::imprimir(std::ostream& out) {
+    for (No* no : nos) {
+        out << no->id << ": ";
+        for (No* viz : no->vizinhos) {
+            double peso = 1.0;
+            auto it = pesos.find({no->id, viz->id});
+            if (it != pesos.end()) peso = it->second;
+            out << viz->id << "(w=" << peso << ") ";
+        }
+        out << "\n";
+    }
+}
+
 // ============================== Kruskal (MST) ==============================
  
 string Graph::kruskal() {
@@ -292,4 +306,117 @@ bool Graph::validarCobertura(const vector<int>& cobertura) {
         }
     }
     return true;
+}
+
+void contructGraphFromEdges(Graph& graph, const std::vector<Edge>& edges) {
+    for (const auto& edge : edges) {
+        graph.adicionar_aresta(edge.u, edge.v, edge.label, false);
+    }
+}
+
+void listofEdges(const Graph& graph, std::vector<Edge>& edges) {
+    map<pair<int,int>, double> pesos = graph.getPesos();
+    for (const auto& edge : pesos) {
+        edges.push_back({edge.first.first, edge.first.second, edge.second});
+    }
+}
+
+void Graph::cutCycles(const std::vector<Edge>& arestas) {
+    UnionFind uf(num_vertices + 1); // +1 porque vertices sao 1-indexados
+    map<pair<int, int>, double> arvore_final;
+    std::vector<Edge> edgesToRemove;
+
+    for (const auto& edge : arestas) {
+        if (!uf.unite(edge.u, edge.v)) {
+            edgesToRemove.push_back(edge);
+        } else {
+            arvore_final[{edge.u, edge.v}] = edge.label;
+        }
+    }
+
+    // Aplica a remoção de fato no grafo
+    for (const auto& edge : edgesToRemove) {
+        removeEdge(edge.u, edge.v);
+    }
+
+}
+
+std::string Graph::minimumLabelingSpanningTree() {
+    std::vector<Edge> totalEdges;
+    listofEdges(*this, totalEdges);
+
+    std::vector<Edge> edges;
+    for (const auto& e : totalEdges) {
+        if (e.u < e.v) edges.push_back(e);
+    }
+
+    // Agrupa arestas por rótulo
+    map<double, std::vector<Edge>> forLabel;
+    for (const auto& e : edges) forLabel[e.label].push_back(e);
+
+    Graph subgrafo(false);
+    for (No* no : nos) subgrafo.insertVertex(no->id); // garante todos os vértices presentes
+
+    set<int> verticesCobertos;
+    set<double> rotulosUsados;
+    std::vector<double> ordemRotulos;
+    size_t totalVertices = nos.size();
+ 
+    while (verticesCobertos.size() < totalVertices) {
+        double melhorRotulo = 0.0;
+        bool achouRotulo = false;
+        int melhorGanho = -1;
+ 
+        for (const auto& par : forLabel) {
+            double rotulo = par.first;
+            if (rotulosUsados.count(rotulo)) continue;
+ 
+            set<int> ganho;
+            for (const auto& e : par.second) {
+                if (!verticesCobertos.count(e.u)) ganho.insert(e.u);
+                if (!verticesCobertos.count(e.v)) ganho.insert(e.v);
+            }
+            if (static_cast<int>(ganho.size()) > melhorGanho) {
+                melhorGanho = static_cast<int>(ganho.size());
+                melhorRotulo = rotulo;
+                achouRotulo = true;
+            }
+        }
+ 
+        if (!achouRotulo || melhorGanho <= 0) break; // nenhum rótulo restante amplia a cobertura
+ 
+        rotulosUsados.insert(melhorRotulo);
+        ordemRotulos.push_back(melhorRotulo);
+        for (const auto& e : forLabel[melhorRotulo]) {
+            subgrafo.adicionar_aresta(e.u, e.v, e.label, false);
+            verticesCobertos.insert(e.u);
+            verticesCobertos.insert(e.v);
+        }
+    }
+ 
+    // Checagem de completude reaproveitando mvca/validarCobertura como sinal
+    // estrutural de que o subgrafo cobre todos os vértices.
+    vector<int> cobertura = subgrafo.mvca();
+    bool completo = subgrafo.validarCobertura(cobertura)
+                    && verticesCobertos.size() == totalVertices;
+ 
+    std::ostringstream oss;
+    if (!completo) {
+        oss << "Nao foi possivel cobrir todos os vertices com os rotulos disponiveis.\n";
+        return oss.str();
+    }
+ 
+    // Remove ciclos remanescentes do subgrafo escolhido por rótulos mínimos
+    std::vector<Edge> arestasSubgrafo;
+    for (double rotulo : ordemRotulos) {
+        for (const auto& e : forLabel[rotulo]) {
+            arestasSubgrafo.push_back(e);
+        }
+    }
+
+    subgrafo.cutCycles(arestasSubgrafo);
+ 
+    oss << "Rotulos utilizados: " << rotulosUsados.size() << "\n";
+    subgrafo.imprimir(oss);
+    return oss.str();
 }
