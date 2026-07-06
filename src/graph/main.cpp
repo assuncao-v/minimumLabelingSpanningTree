@@ -1,30 +1,37 @@
 #include "Graph.hpp"
+#include <fstream>
 #include <algorithm>
 
-int main() {
-    Graph g(false); // grafo não direcionado
+Graph lerInstancia(string arquivo, int& numVertices, int& numArestas, int& numRotulos) {
+    ifstream in(arquivo);
 
-    vector<pair<int, int>> arestas = {
-        {0, 1}, {0, 2}, {1, 2},
-        {2, 3}, {3, 4}, {4, 5},
-        {5, 3}, {6, 5}
-    };
-    for (size_t i = 0; i < arestas.size(); ++i) {
-        g.insertEdge(arestas[i].first, arestas[i].second);
+    in >> numVertices >> numArestas >> numRotulos;
+
+    Graph g(false);
+
+    for (int i = 0; i < numArestas; i++) {
+        int u, v, rotulo;
+        in >> u >> v >> rotulo;
+        g.insertEdge(u, v);
+        g.changeWeight(rotulo, u, v);
     }
 
-    cout << "Grafo (lista de adjacencia):\n";
-    g.imprimir();
+    return g;
+}
 
-    vector<int> cobertura = g.mvca();
-    sort(cobertura.begin(), cobertura.end());
+int main() {
+    for (int i = 1; i <= 20; i++) {
+        string numero = (i < 10 ? "0" : "") + to_string(i);
+        string arquivo = "instancias/instancia" + numero + ".txt";
 
-    cout << "\nCobertura de vertices (MVCA): ";
-    for (int v : cobertura) cout << v << " ";
-    cout << "\n";
+        int numVertices, numArestas, numRotulos;
+        Graph g = lerInstancia(arquivo, numVertices, numArestas, numRotulos);
 
-    cout << "Tamanho da cobertura: " << cobertura.size() << "\n";
-    cout << "Cobertura valida? " << (g.validarCobertura(cobertura) ? "sim" : "nao") << "\n";
+        cout << "Instancia: " << arquivo
+             << "  | vertices=" << numVertices
+             << "  arestas=" << numArestas
+             << "  rotulos=" << numRotulos << "\n";
+    }
 
     return 0;
 }
