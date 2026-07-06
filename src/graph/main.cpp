@@ -28,12 +28,15 @@ int main() {
         int numVertices, numArestas, numRotulos;
         Graph g = lerInstancia(arquivo, numVertices, numArestas, numRotulos);
 
+        string resultado = g.minimumLabelingSpanningTree();
+        // pega só a primeira linha (ex: "Rotulos utilizados: 3")
+        string resumo = resultado.substr(0, resultado.find('\n'));
+
         cout << "Instancia: " << arquivo
              << "  | vertices=" << numVertices
              << "  arestas=" << numArestas
-             << "  rotulos=" << numRotulos << "\n";
-
-        cout << g.minimumLabelingSpanningTree() << "\n";
+             << "  rotulos=" << numRotulos
+             << "  | " << resumo << "\n";
     }
 
     return 0;
