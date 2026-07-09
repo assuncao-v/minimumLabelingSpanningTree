@@ -253,43 +253,61 @@ string Graph::kruskal() {
 //     - adicionam-se u e v à cobertura;
 //     - removem-se todas as arestas incidentes a u ou a v.
  
-vector<int> Graph::mvca() {
-    // Cópia local da lista de adjacência (por id), para remover arestas
-    // sem alterar a estrutura original do grafo.
-    map<int, set<int>> adjRestante;
-    for (No* no : nos) {
-        set<int> vizinhosIds;
-        for (No* viz : no->vizinhos) vizinhosIds.insert(viz->id);
-        adjRestante[no->id] = vizinhosIds;
+std::vector<int> Graph::mvca() {
+    std::vector<Edge> totalEdges;
+    listofEdges(*this, totalEdges);
+
+    // Agrupa arestas por rótulo (evitando duplicatas verificando u < v)
+    map<double, std::vector<Edge>> porRotulo;
+    for (const auto& e : totalEdges) {
+        if (e.u < e.v) porRotulo[e.label].push_back(e);
     }
- 
-    vector<int> cobertura;
-    set<int> naCobertura;
- 
-    while (true) {
-        // Procura um vértice com pelo menos uma aresta restante
-        int u = -1;
-        for (auto& par : adjRestante) {
-            if (!par.second.empty()) {
-                u = par.first;
-                break;
+
+    set<int> rotulosDisponiveis;
+    for (const auto& par : porRotulo) {
+        rotulosDisponiveis.insert(par.first);
+    }
+
+    UnionFind uf(num_vertices + 1); // +1 caso os vértices sejam 1-indexados
+    int componentes = num_vertices;
+    vector<int> rotulosEscolhidos;
+
+    while (componentes > 1 && !rotulosDisponiveis.empty()) {
+        double melhorRotulo = -1.0;
+        int maiorReducao = -1;
+
+        // Avalia qual rótulo reduz mais o número de componentes conexas
+        for (double rotulo : rotulosDisponiveis) {
+            UnionFind temp_uf = uf; // Cria uma cópia do estado atual para simulação
+            int reducao = 0;
+
+            for (const auto& e : porRotulo[rotulo]) {
+                if (temp_uf.unite(e.u, e.v)) {
+                    reducao++;
+                }
+            }
+
+            if (reducao > maiorReducao) {
+                maiorReducao = reducao;
+                melhorRotulo = rotulo;
             }
         }
-        if (u == -1) break; // não há mais arestas: terminou
- 
-        int v = *adjRestante[u].begin(); // escolhe a aresta (u, v)
- 
-        if (naCobertura.insert(u).second) cobertura.push_back(u);
-        if (naCobertura.insert(v).second) cobertura.push_back(v);
- 
-        // Remove todas as arestas incidentes a u ou a v
-        for (int viz : adjRestante[u]) adjRestante[viz].erase(u);
-        for (int viz : adjRestante[v]) adjRestante[viz].erase(v);
-        adjRestante[u].clear();
-        adjRestante[v].clear();
+
+        // Se nenhum rótulo consegue mais conectar componentes isoladas, encerramos
+        if (maiorReducao <= 0) break;
+
+        // Aplica o melhor rótulo definitivamente no Union-Find oficial
+        rotulosEscolhidos.push_back(melhorRotulo);
+        rotulosDisponiveis.erase(melhorRotulo);
+        
+        for (const auto& e : porRotulo[melhorRotulo]) {
+            if (uf.unite(e.u, e.v)) {
+                componentes--;
+            }
+        }
     }
- 
-    return cobertura;
+
+    return rotulosEscolhidos;
 }
  
 bool Graph::validarCobertura(const vector<int>& cobertura) {
