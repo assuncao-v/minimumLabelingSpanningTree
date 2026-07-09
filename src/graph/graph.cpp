@@ -412,11 +412,7 @@ std::string Graph::minimumLabelingSpanningTree() {
         }
     }
  
-    // Checagem de completude reaproveitando mvca/validarCobertura como sinal
-    // estrutural de que o subgrafo cobre todos os vértices.
-    vector<int> cobertura = subgrafo.mvca();
-    bool completo = subgrafo.validarCobertura(cobertura)
-                    && verticesCobertos.size() == totalVertices;
+    bool completo = (verticesCobertos.size() == totalVertices);
  
     std::ostringstream oss;
     if (!completo) {
