@@ -21,6 +21,8 @@ Graph lerInstancia(string arquivo, int& numVertices, int& numArestas, int& numRo
 }
 
 int main() {
+    srand(time(NULL));
+    double alpha[5] = {0.05, 0.1, 0.15, 0.3, 0.5};
     for (int i = 1; i <= 20; i++) {
         string numero = (i < 10 ? "0" : "") + to_string(i);
         string arquivo = "instancias/instancia" + numero + ".txt";
@@ -33,11 +35,23 @@ int main() {
         string resumo = resultado.substr(0, resultado.find('\n'));
 
         cout << "Instancia: " << arquivo
-             << "  | vertices=" << numVertices
-             << "  arestas=" << numArestas
-             << "  rotulos=" << numRotulos
-             << "  | " << resumo << "\n";
-    }
+            << "  | vertices=" << numVertices
+            << "  arestas=" << numArestas
+            << "  rotulos=" << numRotulos
+            << "  | " << resumo << "\n";
 
+        //string resultadoGRASP = g.minimumLabelingSpanningTreeGRASP();
+        // pega só a primeira linha (ex: "Rotulos utilizados: 3")
+        //string resumoGRASP = resultadoGRASP.substr(0, resultadoGRASP.find('\n'));
+        //cout << "  | GRASP: " << resumoGRASP << "\n";
+
+        for (double a : alpha) {
+            string resultadoRandomizado = g.minimumLabelingSpanningTreeRandomized(a);
+            // pega só a primeira linha (ex: "Rotulos utilizados: 3")
+            string resumoRandomizado = resultadoRandomizado.substr(0, resultadoRandomizado.find('\n'));
+            cout << "  | Randomizado (alpha=" << a << "): " << resumoRandomizado << "\n";
+        }
+    }
+    
     return 0;
 }

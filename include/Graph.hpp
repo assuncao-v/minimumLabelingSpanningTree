@@ -63,6 +63,9 @@ class Graph{
         void cutCycles(const std::vector<Edge>& arestas);
  
         string minimumLabelingSpanningTree();
+        string minimumLabelingSpanningTreeRandomized(double alpha = 1.0);
+
+        string minimumLabelingSpanningTreeGRASP();
 };
  
 void contructGraphFromEdges(Graph& graph, const std::vector<Edge>& edges);
