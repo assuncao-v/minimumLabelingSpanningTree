@@ -12,6 +12,12 @@
 #include <limits>
 #include <algorithm>
  
+// ============================== Estruturas auxiliares ==============================
+struct Candidate {
+    int rotulo;
+    int reducao;
+};
+
 // ============================== No ==============================
  
 No::No(int id) : id(id), visitado(false), grau_entrada(0), grau_saida(0) {}
@@ -71,7 +77,7 @@ bool Graph::removeVertex(int vertex) {
  
 // ============================== Arestas ==============================
  
-void Graph::adicionar_aresta(int u, int v, double weight, bool dir) {
+void Graph::adicionar_aresta(int u, int v, int weight, bool dir) {
     No* nu = buscar_no(u);
     No* nv = buscar_no(v);
     if (nu == nullptr) { insertVertex(u); nu = buscar_no(u); }
@@ -80,17 +86,19 @@ void Graph::adicionar_aresta(int u, int v, double weight, bool dir) {
     nu->vizinhos.push_back(nv);
     nu->grau_saida++;
     nv->grau_entrada++;
-    pesos[{u, v}] = weight;
- 
+    pesos[{u, v}].push_back(weight);
+    arestas.push_back({u, v, weight});
+
     if (!dir) {
         nv->vizinhos.push_back(nu);
         nv->grau_saida++;
         nu->grau_entrada++;
-        pesos[{v, u}] = weight;
+        pesos[{v, u}].push_back(weight);
+        arestas.push_back({v, u, weight});
     }
 }
  
-bool Graph::insertEdge(int outputVertex, int inputVertex) {
+bool Graph::insertEdge(int outputVertex, int inputVertex, int weight) {
     if (existEdge(outputVertex, inputVertex)) return false;
  
     No* u = buscar_no(outputVertex);
@@ -101,18 +109,18 @@ bool Graph::insertEdge(int outputVertex, int inputVertex) {
     u->vizinhos.push_back(v);
     u->grau_saida++;
     v->grau_entrada++;
-    pesos[{outputVertex, inputVertex}] = 1.0;
+    pesos[{outputVertex, inputVertex}].push_back(weight);
  
     if (!direcionado) {
         v->vizinhos.push_back(u);
         v->grau_saida++;
         u->grau_entrada++;
-        pesos[{inputVertex, outputVertex}] = 1.0;
+        pesos[{inputVertex, outputVertex}].push_back(weight);
     }
     return true;
 }
  
-bool Graph::removeEdge(int outputVertex, int inputVertex) {
+bool Graph::removeEdge(int outputVertex, int inputVertex, int weight) {
     No* u = buscar_no(outputVertex);
     No* v = buscar_no(inputVertex);
     if (u == nullptr || v == nullptr) return false;
@@ -124,7 +132,14 @@ bool Graph::removeEdge(int outputVertex, int inputVertex) {
     vizU.erase(itU);
     u->grau_saida--;
     v->grau_entrada--;
-    pesos.erase({outputVertex, inputVertex});
+    auto it = pesos.find({outputVertex, inputVertex});
+    if (it != pesos.end()) {
+        auto& weights = it->second;
+        auto weight_it = find(weights.begin(), weights.end(), weight);
+        if (weight_it != weights.end()) {
+            weights.erase(weight_it);
+        }
+    }
  
     if (!direcionado) {
         auto& vizV = v->vizinhos;
@@ -132,8 +147,16 @@ bool Graph::removeEdge(int outputVertex, int inputVertex) {
         if (itV != vizV.end()) vizV.erase(itV);
         v->grau_saida--;
         u->grau_entrada--;
-        pesos.erase({inputVertex, outputVertex});
+        auto it_rev = pesos.find({inputVertex, outputVertex});
+        if (it_rev != pesos.end()) {
+            auto& weights_rev = it_rev->second;
+            auto weight_it_rev = find(weights_rev.begin(), weights_rev.end(), weight);
+            if (weight_it_rev != weights_rev.end()) {
+                weights_rev.erase(weight_it_rev);
+            }
+        }
     }
+
     return true;
 }
  
@@ -146,10 +169,10 @@ bool Graph::existEdge(int outputVertex, int inputVertex) {
     return false;
 }
  
-bool Graph::changeWeight(double weight, int outputVertex, int inputVertex) {
+bool Graph::changeWeight(int weight, int outputVertex, int inputVertex) {
     if (!existEdge(outputVertex, inputVertex)) return false;
-    pesos[{outputVertex, inputVertex}] = weight;
-    if (!direcionado) pesos[{inputVertex, outputVertex}] = weight;
+    pesos[{outputVertex, inputVertex}].push_back(weight);
+    if (!direcionado) pesos[{inputVertex, outputVertex}].push_back(weight);
     return true;
 }
  
@@ -186,9 +209,9 @@ void Graph::imprimir() {
     for (No* no : nos) {
         cout << no->id << ": ";
         for (No* viz : no->vizinhos) {
-            double peso = 1.0;
+            int peso = 0;
             auto it = pesos.find({no->id, viz->id});
-            if (it != pesos.end()) peso = it->second;
+            if (it != pesos.end()) peso = it->second[0];
             cout << viz->id << "(w=" << peso << ") ";
         }
         cout << "\n";
@@ -199,9 +222,9 @@ void Graph::imprimir(std::ostream& out) {
     for (No* no : nos) {
         out << no->id << ": ";
         for (No* viz : no->vizinhos) {
-            double peso = 1.0;
+            int peso = 0;
             auto it = pesos.find({no->id, viz->id});
-            if (it != pesos.end()) peso = it->second;
+            if (it != pesos.end()) peso = it->second[0];
             out << viz->id << "(w=" << peso << ") ";
         }
         out << "\n";
@@ -213,7 +236,7 @@ void Graph::imprimir(std::ostream& out) {
 string Graph::kruskal() {
     if (direcionado) return "Kruskal nao se aplica a grafos direcionados.";
  
-    struct Aresta { int u, v; double peso; };
+    struct Aresta { int u, v; int peso; };
     vector<Aresta> arestas;
     set<pair<int, int>> vistas;
  
@@ -223,9 +246,9 @@ string Graph::kruskal() {
             int b = max(no->id, viz->id);
             if (vistas.count({a, b})) continue;
             vistas.insert({a, b});
-            double peso = 1.0;
+            int peso = 1.0;
             auto it = pesos.find({no->id, viz->id});
-            if (it != pesos.end()) peso = it->second;
+            if (it != pesos.end()) peso = it->second[0];
             arestas.push_back({a, b, peso});
         }
     }
@@ -261,12 +284,12 @@ string Graph::kruskal() {
 //     - adicionam-se u e v à cobertura;
 //     - removem-se todas as arestas incidentes a u ou a v.
  
-std::vector<int> Graph::mvca() {
+std::vector<int> Graph::mvca(int maxVertexId, double alpha) {
     std::vector<Edge> totalEdges;
     listofEdges(*this, totalEdges);
 
     // Agrupa arestas por rótulo (evitando duplicatas verificando u < v)
-    map<double, std::vector<Edge>> porRotulo;
+    map<int, std::vector<Edge>> porRotulo;
     for (const auto& e : totalEdges) {
         if (e.u < e.v) porRotulo[e.label].push_back(e);
     }
@@ -276,17 +299,15 @@ std::vector<int> Graph::mvca() {
         rotulosDisponiveis.insert(par.first);
     }
 
-    UnionFind uf(num_vertices + 1); // +1 caso os vértices sejam 1-indexados
-    int componentes = num_vertices;
+    UnionFind uf(maxVertexId + 1); // +1 caso os vértices sejam 1-indexados
+    int componentes = num_vertices; // Inicialmente, cada vértice é sua própria componente
     vector<int> rotulosEscolhidos;
 
     while (componentes > 1 && !rotulosDisponiveis.empty()) {
-        double melhorRotulo = -1.0;
-        int maiorReducao = -1;
+        vector<Candidate> candidatos;
 
-        // Avalia qual rótulo reduz mais o número de componentes conexas
-        for (double rotulo : rotulosDisponiveis) {
-            UnionFind temp_uf = uf; // Cria uma cópia do estado atual para simulação
+        for(int rotulo : rotulosDisponiveis) {
+            UnionFind temp_uf = uf; // Cópia do estado atual para simulação
             int reducao = 0;
 
             for (const auto& e : porRotulo[rotulo]) {
@@ -295,23 +316,26 @@ std::vector<int> Graph::mvca() {
                 }
             }
 
-            if (reducao > maiorReducao) {
-                maiorReducao = reducao;
-                melhorRotulo = rotulo;
+            if (reducao > 0) {
+                candidatos.push_back({rotulo, reducao});
             }
         }
 
-        // Se nenhum rótulo consegue mais conectar componentes isoladas, encerramos
-        if (maiorReducao <= 0) break;
+        if (candidatos.empty()) break;
 
-        // Aplica o melhor rótulo definitivamente no Union-Find oficial
+        sort(candidatos.begin(), candidatos.end(), [](const Candidate& a, const Candidate& b) {
+            return a.reducao > b.reducao;
+        });
+
+        int limiteMax = std::max(0, (int)(alpha * candidatos.size()) - 1);
+        int k = (limiteMax == 0) ? 0 : rand() % (limiteMax + 1);
+        int melhorRotulo = candidatos[k].rotulo;
+
         rotulosEscolhidos.push_back(melhorRotulo);
         rotulosDisponiveis.erase(melhorRotulo);
         
         for (const auto& e : porRotulo[melhorRotulo]) {
-            if (uf.unite(e.u, e.v)) {
-                componentes--;
-            }
+            if (uf.unite(e.u, e.v)) componentes--;
         }
     }
 
@@ -334,6 +358,22 @@ bool Graph::validarCobertura(const vector<int>& cobertura) {
     return true;
 }
 
+bool Graph::validarCoberturaRotulos(const std::vector<Edge>& cobertura, int maxVertexId) {
+    // Inicializa o UnionFind com o número de vértices
+    UnionFind uf(maxVertexId + 1);
+    int componentes = num_vertices; // Inicialmente, cada vértice é sua própria componente
+
+    // Tenta unir os vértices de cada aresta pertencente à árvore geradora
+    for (const auto& e : cobertura) {
+        if (uf.unite(e.u, e.v)) {
+            componentes--; // Cada união bem-sucedida reduz uma componente
+        }
+    }
+
+    // Se restou exatamente 1 componente, todos os vértices estão conectados!
+    return (componentes == 1);
+}
+
 void contructGraphFromEdges(Graph& graph, const std::vector<Edge>& edges) {
     for (const auto& edge : edges) {
         graph.adicionar_aresta(edge.u, edge.v, edge.label, false);
@@ -341,423 +381,113 @@ void contructGraphFromEdges(Graph& graph, const std::vector<Edge>& edges) {
 }
 
 void listofEdges(const Graph& graph, std::vector<Edge>& edges) {
-    map<pair<int,int>, double> pesos = graph.getPesos();
-    for (const auto& edge : pesos) {
-        edges.push_back({edge.first.first, edge.first.second, edge.second});
-    }
+    edges = graph.getArestas();
 }
 
-void Graph::cutCycles(const std::vector<Edge>& arestas) {
-    UnionFind uf(num_vertices + 1); // +1 porque vertices sao 1-indexados
-    map<pair<int, int>, double> arvore_final;
+void Graph::cutCycles(std::vector<Edge>& arestas, int maxVertexId) {
+    UnionFind uf(maxVertexId + 1); // +1 porque vertices sao 1-indexados
     std::vector<Edge> edgesToRemove;
 
-    for (const auto& edge : arestas) {
+    for (auto& edge : arestas) {
         if (!uf.unite(edge.u, edge.v)) {
             edgesToRemove.push_back(edge);
-        } else {
-            arvore_final[{edge.u, edge.v}] = edge.label;
         }
     }
 
-    // Aplica a remoção de fato no grafo
-    for (const auto& edge : edgesToRemove) {
-        removeEdge(edge.u, edge.v);
+    // Aplica a remoção de fato na lista
+    for (auto& edge : edgesToRemove) {
+        arestas.erase(std::remove(arestas.begin(), arestas.end(), edge), arestas.end());
     }
-
 }
 
 std::string Graph::minimumLabelingSpanningTree() {
+    int maxVertexId = 0;
+    for (No* no : nos) {
+        if (no->id > maxVertexId) maxVertexId = no->id;
+    }
+
+    std::vector<int> rotulosEscolhidos = mvca(maxVertexId); // Obtém os rótulos escolhidos pelo algoritmo guloso
+    // Criamos um set de inteiros para busca rápida O(log N) dos rótulos selecionados
+    std::set<int> setRotulos(rotulosEscolhidos.begin(), rotulosEscolhidos.end());
+
     std::vector<Edge> totalEdges;
     listofEdges(*this, totalEdges); // Obtém todas as arestas do grafo original
 
-    // Agrupa as arestas por rótulo (evitando duplicatas checando u < v)
-    std::map<double, std::vector<Edge>> porRotulo;
+    // 1. Filtramos as arestas VIRTUALMENTE (sem remover do grafo)
+    std::vector<Edge> edgesFiltradas;
     for (const auto& e : totalEdges) {
-        if (e.u < e.v) {
-            porRotulo[e.label].push_back(e);
+        if (setRotulos.count(static_cast<int>(e.label))) {
+            edgesFiltradas.push_back(e);
         }
     }
 
-    // Coleta todos os rótulos disponíveis no grafo
-    std::set<double> rotulosDisponiveis;
-    for (const auto& par : porRotulo) {
-        rotulosDisponiveis.insert(par.first);
-    }
+    // 2. Cut Cycles: removemos arestas que formam ciclos
+    cutCycles(edgesFiltradas, maxVertexId);
 
-    // Encontra o maior ID de vértice para inicializar o UnionFind com segurança
-    int maxVertexId = 0;
-    for (No* no : nos) {
-        if (no->id > maxVertexId) {
-            maxVertexId = no->id;
-        }
-    }
-
-    // Inicializa o UnionFind oficial e o contador de componentes
-    UnionFind uf(maxVertexId + 1); 
-    int componentes = num_vertices;
-    
-    std::vector<double> rotulosEscolhidos;
-    std::vector<Edge> arestasArvoreFinal; // Guardará as arestas da árvore geradora
-
-    // Loop Guloso: roda até que restem apenas 1 componente (tudo conectado)
-    while (componentes > 1 && !rotulosDisponiveis.empty()) {
-        double melhorRotulo = -1.0;
-        int maiorReducao = -1;
-
-        // 1. Simulação: Avalia qual rótulo reduz mais o número de componentes
-        for (double rotulo : rotulosDisponiveis) {
-            UnionFind temp_uf = uf; // Cria uma cópia do estado atual para simular
-            int reducao = 0;
-
-            for (const auto& e : porRotulo[rotulo]) {
-                if (temp_uf.unite(e.u, e.v)) {
-                    reducao++;
-                }
-            }
-
-            if (reducao > maiorReducao) {
-                maiorReducao = reducao;
-                melhorRotulo = rotulo;
-            }
-        }
-
-        // Se nenhum rótulo consegue mais conectar componentes isoladas, interrompe
-        if (maiorReducao <= 0) break;
-
-        // 2. Aplicação Real: Aplica o melhor rótulo definitivamente no Union-Find oficial
-        rotulosEscolhidos.push_back(melhorRotulo);
-        rotulosDisponiveis.erase(melhorRotulo);
-        
-        for (const auto& e : porRotulo[melhorRotulo]) {
-            // Se a união der certo, significa que esta aresta reduziu uma componente
-            // e NÃO gerou ciclos. Portanto, ela faz parte da árvore final!
-            if (uf.unite(e.u, e.v)) {
-                componentes--;
-                arestasArvoreFinal.push_back(e); 
-            }
-        }
-    }
-
-    // Monta a string de retorno formatada exatamente como o seu main.cpp espera
     std::ostringstream oss;
-    if (componentes > 1) {
+    // 3. Validação segura: se não restou apenas 1 componente, o grafo não foi coberto
+    if (validarCoberturaRotulos(edgesFiltradas, maxVertexId) == false) {
         oss << "Nao foi possivel cobrir todos os vertices com os rotulos disponiveis.\n";
         return oss.str();
     }
-
-    // Primeira linha crucial para a leitura do main.cpp ("Rotulos utilizados: X")
+   
+    // 4. Monta a string de retorno formatada
     oss << "Rotulos utilizados: " << rotulosEscolhidos.size() << "\n";
-    
     oss << "Lista de rotulos escolhidos de forma gulosa: ";
-    for (double r : rotulosEscolhidos) {
+    for (int r : rotulosEscolhidos) {
         oss << r << " ";
     }
     oss << "\nArestas componentes da arvore geradora:\n";
-    for (const auto& e : arestasArvoreFinal) {
+    for (const auto& e : edgesFiltradas) {
         oss << "  (" << e.u << " -> " << e.v << ") [Label: " << e.label << "]\n";
     }
 
     return oss.str();
 }
 
-struct Candidate {
-    double rotulo;
-    int reducao;
-};
-
 std::string Graph::minimumLabelingSpanningTreeRandomized(double alpha) {
-    std::vector<Edge> totalEdges;
-    listofEdges(*this, totalEdges); // Obtém todas as arestas do grafo original
-
-    // Agrupa as arestas por rótulo (evitando duplicatas checando u < v)
-    std::map<double, std::vector<Edge>> porRotulo;
-    for (const auto& e : totalEdges) {
-        if (e.u < e.v) {
-            porRotulo[e.label].push_back(e);
-        }
-    }
-
-    // Coleta todos os rótulos disponíveis no grafo
-    std::set<double> rotulosOrignais;
-    for (const auto& par : porRotulo) {
-        rotulosOrignais.insert(par.first);
-    }
-
-    // Encontra o maior ID de vértice para inicializar o UnionFind com segurança
     int maxVertexId = 0;
-    for (No* no : nos) {
-        if (no->id > maxVertexId) {
-            maxVertexId = no->id;
-        }
-    }
+    for (No* no : nos) if (no->id > maxVertexId) maxVertexId = no->id;
 
-    // Variaveis para guardar a MELHOR solução global
     int minRotulosGlobais = std::numeric_limits<int>::max();
-    std::vector<double> melhorSolucaoGlobal;
+    std::vector<int> melhorSolucaoGlobal;
     std::vector<Edge> melhorArvoreGlobal;
     bool encontrouSolucaoValida = false;
 
-    // Número de iterações do laço externo
-    int maxIter = 100; // Pode ser ajustado conforme necessário
+    int maxIter = 100;
+    for (int iter = 0; iter < maxIter; iter++) {
+        std::vector<int> rotulosEscolhidos = mvca(maxVertexId, alpha);
+        std::set<int> setRotulos(rotulosEscolhidos.begin(), rotulosEscolhidos.end());
 
-    for(int iter = 0; iter < maxIter; iter++){
-        // Inicializa o UnionFind oficial e o contador de componentes
-        UnionFind uf(maxVertexId + 1); 
-        int componentes = num_vertices;
-        
-        std::set<double> rotulosDisponiveis = rotulosOrignais;
-        std::vector<double> rotulosEscolhidos;
-        std::vector<Edge> arestasArvoreFinal; // Guardará as arestas da árvore geradora
+        std::vector<Edge> totalEdges;
+        listofEdges(*this, totalEdges);
 
-        // Loop Guloso: roda até que restem apenas 1 componente (tudo conectado)
-        while (componentes > 1 && !rotulosDisponiveis.empty()) {
-            std::vector<Candidate> candidatos;
-            //double melhorRotulo = -1.0;
-        // int maiorReducao = -1;
+        std::vector<Edge> edgesFiltradas;
+        for (const auto& e : totalEdges) {
+            if (setRotulos.count(e.label)) edgesFiltradas.push_back(e);
+        }
+        cutCycles(edgesFiltradas, maxVertexId);
 
-            // 1. Simulação: Avalia qual rótulo reduz mais o número de componentes
-            for (double rotulo : rotulosDisponiveis) {
-                UnionFind temp_uf = uf; // Cria uma cópia do estado atual para simular
-                int reducao = 0;
-
-                for (const auto& e : porRotulo[rotulo]) {
-                    if (temp_uf.unite(e.u, e.v)) {
-                        reducao++;
-                    }
-                }
-
-                if (reducao > 0) {
-                    candidatos.push_back({rotulo, reducao});
-                }
-            }
-
-            // Se nenhum rótulo consegue reduzir componentes, interrompe
-            if (candidatos.empty()) break;
-
-            // 2. Aplicação Real: Aplica o melhor rótulo definitivamente no Union-Find oficial
-            // Ordena os candidatos por redução (decrescente) e escolhe o primeiro
-            std::sort(candidatos.begin(), candidatos.end(), [](const Candidate& a, const Candidate& b) {
-                return a.reducao > b.reducao;
-            });
-
-            // 3. k = randomRange(0, alfa * candidatos.count() - 1);
-            // Calcula o limite superior do sorteio. O std::max garante que não teremos números negativos.
-            int limiteMax = std::max(0, (int)(alpha * candidatos.size()) - 1);
-
-            // Sorteia o índice k
-            int k = (limiteMax == 0) ? 0 : rand() % (limiteMax + 1);
-
-            // 4. Elemento escolhido
-            double melhorRotulo = candidatos[k].rotulo;
-
-            rotulosEscolhidos.push_back(melhorRotulo);
-            rotulosDisponiveis.erase(melhorRotulo);
-            
-            for (const auto& e : porRotulo[melhorRotulo]) {
-                // Se a união der certo, significa que esta aresta reduziu uma componente
-                // e NÃO gerou ciclos. Portanto, ela faz parte da árvore final!
-                if (uf.unite(e.u, e.v)) {
-                    componentes--;
-                    arestasArvoreFinal.push_back(e); 
-                }
-            }
-        } // Fim Loop Guloso
-
-        // Se conseguiu conectar o grafo e foi melhor do que o recorde global, atualiza
-        if (componentes == 1) {
+        if (validarCoberturaRotulos(edgesFiltradas, maxVertexId)) {
             encontrouSolucaoValida = true;
             if ((int)rotulosEscolhidos.size() < minRotulosGlobais) {
                 minRotulosGlobais = rotulosEscolhidos.size();
                 melhorSolucaoGlobal = rotulosEscolhidos;
-                melhorArvoreGlobal = arestasArvoreFinal;
+                melhorArvoreGlobal = edgesFiltradas;
             }
         }
-    } // Fim do loop de iterações
+    }
 
-    // Monta a string de retorno baseada na MELHOR solução encontrada
     std::ostringstream oss;
     if (!encontrouSolucaoValida) {
         oss << "Nao foi possivel cobrir todos os vertices com os rotulos disponiveis.\n";
         return oss.str();
     }
 
-    // Formatação idêntica para o main.cpp ler sem quebrar
     oss << "Rotulos utilizados: " << minRotulosGlobais << "\n";
     oss << "Lista de rotulos escolhidos de forma gulosa randomizada (alpha=" << alpha << "): ";
-    for (double r : melhorSolucaoGlobal) {
-        oss << r << " ";
-    }
+    for (int r : melhorSolucaoGlobal) oss << r << " ";
     oss << "\nArestas componentes da arvore geradora:\n";
-    for (const auto& e : melhorArvoreGlobal) {
-        oss << "  (" << e.u << " -> " << e.v << ") [Label: " << e.label << "]\n";
-    }
-
-    return oss.str();
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-std::string Graph::minimumLabelingSpanningTreeGRASP() {
-    // Semente para a aleatoriedade do GRASP (idealmente chamada uma vez no main, mas seguro aqui)
-    srand(time(NULL)); 
-
-    std::vector<Edge> totalEdges;
-    listofEdges(*this, totalEdges);
-
-    // Agrupa as arestas por rótulo
-    std::map<double, std::vector<Edge>> porRotulo;
-    for (const auto& e : totalEdges) {
-        if (e.u < e.v) {
-            porRotulo[e.label].push_back(e);
-        }
-    }
-
-    std::set<double> rotulosDisponiveisIniciais;
-    for (const auto& par : porRotulo) {
-        rotulosDisponiveisIniciais.insert(par.first);
-    }
-
-    int maxVertexId = 0;
-    for (No* no : nos) {
-        if (no->id > maxVertexId) maxVertexId = no->id;
-    }
-
-    // Variáveis globais do GRASP
-    int minRotulosGlobais = std::numeric_limits<int>::max();
-    std::vector<double> melhorSolucaoGlobal;
-    std::vector<Edge> melhorArvoreGlobal;
-    
-    int maxIteracoes = 100; // Quantas vezes o GRASP vai rodar
-    double alpha = 0.8;     // Fator de aleatoriedade (0.0 a 1.0)
-
-    // ==========================================
-    // LOOP PRINCIPAL DO GRASP
-    // ==========================================
-    for (int iteracao = 0; iteracao < maxIteracoes; iteracao++) {
-        UnionFind uf(maxVertexId + 1);
-        int componentes = num_vertices;
-        
-        std::set<double> rotulosDisponiveis = rotulosDisponiveisIniciais;
-        std::vector<double> rotulosEscolhidos;
-        std::vector<Edge> arestasArvore;
-
-        // --- FASE 1: Construção Gulosa Randomizada ---
-        while (componentes > 1 && !rotulosDisponiveis.empty()) {
-            int maiorReducao = -1;
-            std::map<double, int> reducaoDoRotulo;
-
-            // Avalia o potencial de todos os rótulos
-            for (double rotulo : rotulosDisponiveis) {
-                UnionFind temp_uf = uf;
-                int reducao = 0;
-                for (const auto& e : porRotulo[rotulo]) {
-                    if (temp_uf.unite(e.u, e.v)) reducao++;
-                }
-                reducaoDoRotulo[rotulo] = reducao;
-                if (reducao > maiorReducao) maiorReducao = reducao;
-            }
-
-            if (maiorReducao <= 0) break;
-
-            // Monta a Lista Restrita de Candidatos (RCL)
-            std::vector<double> rcl;
-            for (double rotulo : rotulosDisponiveis) {
-                if (reducaoDoRotulo[rotulo] >= alpha * maiorReducao) {
-                    rcl.push_back(rotulo);
-                }
-            }
-
-            // Escolhe um rótulo aleatório da RCL
-            int randomIndex = rand() % rcl.size();
-            double melhorRotulo = rcl[randomIndex];
-
-            // Aplica no grafo atual
-            rotulosEscolhidos.push_back(melhorRotulo);
-            rotulosDisponiveis.erase(melhorRotulo);
-            
-            for (const auto& e : porRotulo[melhorRotulo]) {
-                if (uf.unite(e.u, e.v)) {
-                    componentes--;
-                    arestasArvore.push_back(e);
-                }
-            }
-        }
-
-        // --- FASE 2: Busca Local (Drop Heuristic) ---
-        // Tenta remover rótulos que ficaram redundantes
-        for (size_t i = 0; i < rotulosEscolhidos.size(); i++) {
-            double rotuloTeste = rotulosEscolhidos[i];
-            
-            // Simula o grafo SEM esse rótulo
-            UnionFind teste_uf(maxVertexId + 1);
-            int compTeste = num_vertices;
-            
-            for (double r : rotulosEscolhidos) {
-                if (r == rotuloTeste) continue; // Pula o rótulo que estamos testando
-                for (const auto& e : porRotulo[r]) {
-                    if (teste_uf.unite(e.u, e.v)) compTeste--;
-                }
-            }
-            
-            // Se o grafo continuou conectado (1 componente), o rótulo é inútil!
-            if (compTeste == 1) {
-                rotulosEscolhidos.erase(rotulosEscolhidos.begin() + i);
-                i--; // Ajusta o índice pois o vetor diminuiu
-                
-                // Precisamos reconstruir as arestas da árvore sem ele
-                arestasArvore.clear();
-                UnionFind refaz_uf(maxVertexId + 1);
-                for (double r : rotulosEscolhidos) {
-                    for (const auto& e : porRotulo[r]) {
-                        if (refaz_uf.unite(e.u, e.v)) arestasArvore.push_back(e);
-                    }
-                }
-            }
-        }
-
-        // --- ATUALIZA O MELHOR GLOBAL ---
-        if (componentes == 1 && rotulosEscolhidos.size() < minRotulosGlobais) {
-            minRotulosGlobais = rotulosEscolhidos.size();
-            melhorSolucaoGlobal = rotulosEscolhidos;
-            melhorArvoreGlobal = arestasArvore;
-        }
-    }
-
-    // ==========================================
-    // FORMATAÇÃO DA SAÍDA
-    // ==========================================
-    std::ostringstream oss;
-    if (minRotulosGlobais == std::numeric_limits<int>::max()) {
-        oss << "Nao foi possivel cobrir todos os vertices com os rotulos disponiveis.\n";
-        return oss.str();
-    }
-
-    oss << "Rotulos utilizados: " << minRotulosGlobais << "\n";
-    oss << "Lista de rotulos (GRASP): ";
-    for (double r : melhorSolucaoGlobal) {
-        oss << r << " ";
-    }
-    oss << "\nArestas da arvore:\n";
     for (const auto& e : melhorArvoreGlobal) {
         oss << "  (" << e.u << " -> " << e.v << ") [Label: " << e.label << "]\n";
     }

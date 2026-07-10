@@ -13,7 +13,7 @@ Graph lerInstancia(string arquivo, int& numVertices, int& numArestas, int& numRo
     for (int i = 0; i < numArestas; i++) {
         int u, v, rotulo;
         in >> u >> v >> rotulo;
-        arestas.push_back({u, v, (double)rotulo});
+        arestas.push_back({u, v, (int)rotulo});
     }
 
     contructGraphFromEdges(g, arestas);
@@ -31,25 +31,60 @@ int main() {
         Graph g = lerInstancia(arquivo, numVertices, numArestas, numRotulos);
 
         string resultado = g.minimumLabelingSpanningTree();
-        // pega só a primeira linha (ex: "Rotulos utilizados: 3")
-        string resumo = resultado.substr(0, resultado.find('\n'));
+        vector<string> linhasResultado;
+        size_t inicio = 0;
+        while (inicio <= resultado.size()) {
+            size_t fim = resultado.find('\n', inicio);
+            if (fim == string::npos) {
+                if (inicio < resultado.size()) {
+                    linhasResultado.push_back(resultado.substr(inicio));
+                }
+                break;
+            }
+
+            linhasResultado.push_back(resultado.substr(inicio, fim - inicio));
+            inicio = fim + 1;
+        }
 
         cout << "Instancia: " << arquivo
             << "  | vertices=" << numVertices
             << "  arestas=" << numArestas
             << "  rotulos=" << numRotulos
-            << "  | " << resumo << "\n";
+            << "  | ";
 
-        //string resultadoGRASP = g.minimumLabelingSpanningTreeGRASP();
-        // pega só a primeira linha (ex: "Rotulos utilizados: 3")
-        //string resumoGRASP = resultadoGRASP.substr(0, resultadoGRASP.find('\n'));
-        //cout << "  | GRASP: " << resumoGRASP << "\n";
+        if (!linhasResultado.empty()) {
+            cout << linhasResultado[0] << "\n";
+            for (size_t i = 1; i < 2; i++) {
+                cout << "  | " << linhasResultado[i] << "\n";
+            }
+        } else {
+            cout << "\n";
+        }
 
         for (double a : alpha) {
             string resultadoRandomizado = g.minimumLabelingSpanningTreeRandomized(a);
-            // pega só a primeira linha (ex: "Rotulos utilizados: 3")
-            string resumoRandomizado = resultadoRandomizado.substr(0, resultadoRandomizado.find('\n'));
-            cout << "  | Randomizado (alpha=" << a << "): " << resumoRandomizado << "\n";
+            vector<string> linhasResultadoRandom;
+            size_t inicio = 0;
+            while (inicio <= resultadoRandomizado.size()) {
+                size_t fim = resultadoRandomizado.find('\n', inicio);
+                if (fim == string::npos) {
+                    if (inicio < resultadoRandomizado.size()) {
+                        linhasResultadoRandom.push_back(resultadoRandomizado.substr(inicio));
+                    }
+                    break;
+                }
+
+                linhasResultadoRandom.push_back(resultadoRandomizado.substr(inicio, fim - inicio));
+                inicio = fim + 1;
+            }
+            if (!linhasResultadoRandom.empty()) {
+                cout << linhasResultadoRandom[0] << "\n";
+                for (size_t i = 1; i < 2; i++) {
+                    cout << "  | " << linhasResultadoRandom[i] << "\n";
+                }
+            } else {
+                cout << "\n";
+            }
         }
     }
     
