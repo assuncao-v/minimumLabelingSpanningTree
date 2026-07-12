@@ -11,6 +11,8 @@
 #include <sstream>
 #include <limits>
 #include <algorithm>
+#include <random>
+#include <numeric>
  
 // ============================== Estruturas auxiliares ==============================
 struct Candidate {
@@ -278,7 +280,7 @@ string Graph::kruskal() {
  
 // ============================== MVCA ==============================
 //
-// Algoritmo 2-aproximativo para Cobertura Mínima de Vértices.
+// Algoritmo 2-aproximativo para Cobertura Máxima de Vértices.
 //   Enquanto houver arestas:
 //     - escolhe-se uma aresta (u, v) qualquer;
 //     - adicionam-se u e v à cobertura;
@@ -445,6 +447,10 @@ std::string Graph::minimumLabelingSpanningTree() {
     return oss.str();
 }
 
+/* ============================ Algoritmo guloso randomizado ============================
+
+*/
+
 std::string Graph::minimumLabelingSpanningTreeRandomized(double alpha) {
     int maxVertexId = 0;
     for (No* no : nos) if (no->id > maxVertexId) maxVertexId = no->id;
@@ -491,6 +497,104 @@ std::string Graph::minimumLabelingSpanningTreeRandomized(double alpha) {
     for (const auto& e : melhorArvoreGlobal) {
         oss << "  (" << e.u << " -> " << e.v << ") [Label: " << e.label << "]\n";
     }
+
+    return oss.str();
+}
+
+/* ============================ Algoritmo guloso randomizado reativo ============================
+
+*/
+std::string Graph::minimumLabelingSpanningTreeReatived(int maxIter = 200, int blockSize = 20){
+    int maxVertexId = 0;
+    for (No* no: nos) if (no->id > maxVertexId) maxVertexId = no->id
+
+    std::vector<double> alphas = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
+    int numAlphas = alphas.size();
+    std::vector<double> prob(numAlphas, 1.0 / numAlphas);
+
+    // Informações para o cálculo das probabilidades de cada alfa
+    std::vector<double> somaRotulos(numAlphas, 0.0);
+    std::vector<int> contagens(numAlphas, 0);
+
+    int minRotulosGlobais = std::numeric_limits<int>::max();
+    std::vector<int> melhorSolucaoGlobal;
+    std::vector<Edge> melhorArvoreGlobal;
+    bool encontrouSolucaoValida = false;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    for (int i = 0; i < maxIter; i++) {
+        // Heurística reativa
+        std::discrete_distribution<> dist(prob.begin(), prob.end());
+        int idxAlpha = dist(gen);
+        double alphaAtual = alphas[idxAlpha];
+
+        // Heurística gulosa randomizada
+        std::vector<int> rotulosEscolhidos = mvca(maxVertexId, alphaAtual);
+        std::set<int> setRotulos(rotulosEscolhidos.begin(), rotulosEscolhidos.end());
+        
+        std::vector<Edge> totalEdges;
+        listofEdges(*this, totalEdges);
+
+        std::vector<Edge> edgesFiltradas;
+        for (const auto& e : totalEdges) {
+            if (setRotulos.count(e.label)) edgesFiltradas.push_back(e);
+        }
+        cutCycles(edgesFiltradas, maxVertexId);
+
+        if (validarCoberturaRotulos(edgesFiltradas, maxVertexId)){
+            encontrouSolucaoValida = true;
+            custoTotal = rotulosEscolhidos.size();
+
+            // Atualização das estatística de um determinado alfa
+            somaRotulos[idxAlpha] += custoTotal
+            contagens[idxAlpha]++;
+
+
+            if (custoAtual < minRotulosGlobais){
+                minRotulosGlobais = custoAtual;
+                melhorSolucaoGlobal = rotulosEscolhidos;
+                melhorArvoreGlobal = edgesFiltradas;
+            }
+        }
+
+        // Processo reativido de atualização das probabilidades
+        if ((i + 1) % blockSize == 0 && encontrouSolucaoValida){
+            std::vector<double> qualidade(numAlphas, 0.0);
+            double somaQualidade = 0.0;
+
+            for (int i = 0; i < numAlphas; i++){
+                if(contagens[i] > 0){
+                    double mediaCustos = somaRotulos[i] / contagens[i];
+
+                    qualidade[i] = (double) minRotulosGlobais/mediaCustos
+                }
+                else {
+                    qualidade[i] = 0.0;
+                }
+                somaQualidades += qualidade[i];
+            }
+
+            // Normalização das probabilidades
+            for (int i = 0; i < numAlphas; i++)
+                prob[i] = (somaQualidade > 0) ? qualidade[i] / somaQualidade : 1.0 / numAlphas;
+            
+        }
+    }
+
+    std::ostringstream oss;
+    if (!encontrouSolucaoValida){
+        oss << "Nao foi possivel cobrir todos os vertices com os rotulos disponiveis.\n";
+        return oss.str();
+    }
+    
+    oss << "Rótulos utilizados " << minRotulosGlobais << "\n";
+    oss << "Lista de rotulos escolhidos na melhor solucao: ";
+    for (int r:melhorSolucaoGlobal) oss << r << " ";
+    oss << "\nArestas componentes da arvore geradora:\n";
+    for(const auto& e : melhorArvoreGlobal)
+        oss << " (" <<e.u << " -> " << e.v << ") [Rotulo: "<< e.label << "]\n";
 
     return oss.str();
 }
