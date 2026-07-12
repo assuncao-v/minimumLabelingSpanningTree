@@ -1,6 +1,7 @@
 #include "../../include/Graph.hpp"
 #include <fstream>
 #include <algorithm>
+#include <chrono>
 
 Graph lerInstancia(string arquivo, int& numVertices, int& numArestas, int& numRotulos) {
     ifstream in(arquivo);
@@ -30,7 +31,11 @@ int main() {
         int numVertices, numArestas, numRotulos;
         Graph g = lerInstancia(arquivo, numVertices, numArestas, numRotulos);
 
+        auto t1 = chrono::high_resolution_clock::now();
         string resultado = g.minimumLabelingSpanningTree();
+        auto t2 = chrono::high_resolution_clock::now();
+        double tempoMs = chrono::duration<double, milli>(t2 - t1).count();
+
         vector<string> linhasResultado;
         size_t inicio = 0;
         while (inicio <= resultado.size()) {
@@ -50,6 +55,7 @@ int main() {
             << "  | vertices=" << numVertices
             << "  arestas=" << numArestas
             << "  rotulos=" << numRotulos
+            << "  | tempo=" << tempoMs << "ms"
             << "  | ";
 
         if (!linhasResultado.empty()) {
