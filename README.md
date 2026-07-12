@@ -9,9 +9,11 @@ Universidade Federal de Juiz de Fora (UFJF)
 
 ## Sobre o Projeto
 
-Implementação de uma heurística gulosa para o **Problema da Árvore Geradora com Número Mínimo de Rótulos (MLSTP)**.
+Implementação de três algoritmos para o **Problema da Árvore Geradora com Número Mínimo de Rótulos (MLSTP)**:
 
-Dado um grafo conexo onde cada aresta possui um rótulo, o objetivo é encontrar uma árvore geradora que conecte todos os vértices usando o menor número possível de rótulos distintos.
+- **MVCA** — heurística gulosa determinística
+- **MVCA Randomizado** — GRASP com alpha fixo, 100 iterações por chamada
+- **GRASP Reativo** — GRASP com alpha dinâmico, 200 iterações por chamada
 
 ---
 
@@ -23,8 +25,8 @@ minimumLabelingSpanningTree/
 │   └── Graph.hpp                  # Definição das classes e structs
 ├── src/
 │   ├── graph/
-│   │   ├── graph.cpp              # Implementação do grafo e heurística MLST
-│   │   └── main.cpp               # Lê as instâncias e executa o algoritmo
+│   │   ├── graph.cpp              # Implementação do grafo e algoritmos
+│   │   └── main.cpp               # Experimentos 1, 2 e 3
 │   ├── generator/
 │   │   └── generator.cpp          # Gerador das 20 instâncias de teste
 │   └── disjoint-set-union/
@@ -47,7 +49,7 @@ minimumLabelingSpanningTree/
 ## Passo 1 — Clonar o repositório
 
 ```bash
-git clone https://github.com/isaac-kapela/trabalho-final-grafos
+git clone https://github.com/assuncao-v/minimumLabelingSpanningTree
 cd minimumLabelingSpanningTree
 ```
 
@@ -62,7 +64,7 @@ cmake --build build
 
 Os binários ficam em `build/bin/`:
 - `gerador_mlstp` — gera as instâncias
-- `grafo_mvca` — executa a heurística nas instâncias
+- `grafo_mvca` — executa os três experimentos
 
 ---
 
@@ -95,48 +97,70 @@ u2 v2 rotulo2
 
 ---
 
-## Passo 4 — Executar a heurística
+## Passo 4 — Rodar os algoritmos
 
 ```bash
 ./build/bin/grafo_mvca
 ```
 
-A saída mostra para cada instância o número de rótulos utilizados pela heurística:
+O programa executa três experimentos em sequência:
+
+### Experimento 1 — MVCA Guloso
+Roda o MVCA uma vez em cada instância. Exibe o número de rótulos utilizados e o tempo de execução.
 
 ```
-Instancia: instancias/instancia01.txt  | vertices=100  arestas=990  rotulos=25  | Rotulos utilizados: 3
-Instancia: instancias/instancia02.txt  | vertices=100  arestas=990  rotulos=25  | Rotulos utilizados: 4
+============================================================
+  EXPERIMENTO 1 — MVCA Guloso (1 execucao por instancia)
+============================================================
+
+Instancia         Rotulos     Tempo (ms)
+--------------------------------------------
+instancia01       4           0.386
+instancia02       4           0.283
 ...
+```
+
+### Experimento 2 — MVCA Randomizado
+Para cada instância e cada valor de alpha `{0.05, 0.10, 0.15, 0.30, 0.50}`, executa o MVCA randomizado **30 vezes**. Exibe o resultado de cada execução e a média de rótulos e tempo por alpha.
+
+```
+============================================================
+  EXPERIMENTO 2 — MVCA Randomizado
+  30 execucoes por alpha | alphas: {0.05, 0.10, 0.15, 0.30, 0.50}
+============================================================
+...
+  Media (alpha=0.10): rotulos=3.00  tempo=21.906ms
+```
+
+### Experimento 3 — GRASP Reativo
+Executa o GRASP Reativo **30 vezes** por instância. O alpha é ajustado dinamicamente a cada bloco de 20 iterações com base no desempenho histórico. Exibe ao final duas tabelas: qualidade e tempo.
+
+```
+============================================================
+  EXPERIMENTO 3 — GRASP Reativo (30 execucoes por instancia)
+============================================================
+...
+  TABELA DE QUALIDADE — GRASP Reativo
+  TABELA DE TEMPO — GRASP Reativo
+```
+
+### Salvar saída em arquivo
+
+```bash
+./build/bin/grafo_mvca > resultados.txt
 ```
 
 ---
 
 ## Como Testar
 
-### Teste rápido (uma instância)
-
-Verifique se a saída da instância 01 bate com o resultado esperado:
+### Teste rápido (Experimento 1 apenas)
 
 ```bash
-./build/bin/grafo_mvca 2>&1 | head -1
+./build/bin/grafo_mvca 2>&1 | head -25
 ```
 
-Saída esperada:
-```
-Instancia: instancias/instancia01.txt  | vertices=100  arestas=990  rotulos=25  | Rotulos utilizados: 3
-```
-
-### Teste completo (todas as instâncias)
-
-```bash
-./build/bin/grafo_mvca
-```
-
-Verifique se todas as 20 linhas aparecem sem erro e os rótulos utilizados batem com a tabela de resultados abaixo.
-
-### Verificar reprodutibilidade
-
-Como o gerador usa seed fixa, rodar `gerador_mlstp` duas vezes deve produzir arquivos idênticos:
+### Verificar reprodutibilidade das instâncias
 
 ```bash
 cd instancias
@@ -149,33 +173,6 @@ md5sum instancia01.txt   # deve ser igual ao anterior
 
 ---
 
-## Resultados
-
-| Instância | n | m | l | Rótulos usados |
-|---|---|---|---|---|
-| instancia01 | 100 | 990 | 25 | 3 |
-| instancia02 | 100 | 990 | 25 | 4 |
-| instancia03 | 100 | 2475 | 25 | 2 |
-| instancia04 | 100 | 2475 | 25 | 2 |
-| instancia05 | 100 | 3960 | 25 | 1 |
-| instancia06 | 200 | 3980 | 50 | 5 |
-| instancia07 | 200 | 3980 | 50 | 5 |
-| instancia08 | 200 | 9950 | 50 | 2 |
-| instancia09 | 200 | 9950 | 50 | 2 |
-| instancia10 | 200 | 15920 | 50 | 2 |
-| instancia11 | 500 | 24950 | 125 | 5 |
-| instancia12 | 500 | 24950 | 125 | 5 |
-| instancia13 | 500 | 62375 | 125 | 3 |
-| instancia14 | 500 | 62375 | 125 | 3 |
-| instancia15 | 500 | 99800 | 125 | 2 |
-| instancia16 | 1000 | 99900 | 250 | 5 |
-| instancia17 | 1000 | 99900 | 250 | 6 |
-| instancia18 | 1000 | 249750 | 250 | 3 |
-| instancia19 | 1000 | 249750 | 250 | 3 |
-| instancia20 | 1000 | 399600 | 250 | 2 |
-
----
-
 ## Observação
 
-Quanto maior a densidade do grafo, menor o número de rótulos necessários — com mais arestas disponíveis, a heurística consegue conectar todos os vértices com menos rótulos distintos.
+Quanto maior a densidade do grafo, menor o número de rótulos necessários. O MVCA Randomizado com alphas pequenos (0.05, 0.10) tende a encontrar soluções melhores que o MVCA puro, enquanto alphas maiores aumentam a exploração mas podem piorar a qualidade média.
