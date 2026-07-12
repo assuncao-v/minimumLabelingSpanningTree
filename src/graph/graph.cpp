@@ -504,9 +504,12 @@ std::string Graph::minimumLabelingSpanningTreeRandomized(double alpha) {
 /* ============================ Algoritmo guloso randomizado reativo ============================
 
 */
-std::string Graph::minimumLabelingSpanningTreeReatived(int maxIter = 200, int blockSize = 20){
+std::string Graph::minimumLabelingSpanningTreeGRASP(){
+    int maxIter = 200;
+    int blockSize = 20;
+
     int maxVertexId = 0;
-    for (No* no: nos) if (no->id > maxVertexId) maxVertexId = no->id
+    for (No* no: nos) if (no->id > maxVertexId) maxVertexId = no->id;
 
     std::vector<double> alphas = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
     int numAlphas = alphas.size();
@@ -533,7 +536,7 @@ std::string Graph::minimumLabelingSpanningTreeReatived(int maxIter = 200, int bl
         // Heurística gulosa randomizada
         std::vector<int> rotulosEscolhidos = mvca(maxVertexId, alphaAtual);
         std::set<int> setRotulos(rotulosEscolhidos.begin(), rotulosEscolhidos.end());
-        
+
         std::vector<Edge> totalEdges;
         listofEdges(*this, totalEdges);
 
@@ -545,12 +548,11 @@ std::string Graph::minimumLabelingSpanningTreeReatived(int maxIter = 200, int bl
 
         if (validarCoberturaRotulos(edgesFiltradas, maxVertexId)){
             encontrouSolucaoValida = true;
-            custoTotal = rotulosEscolhidos.size();
+            int custoAtual = rotulosEscolhidos.size();
 
-            // Atualização das estatística de um determinado alfa
-            somaRotulos[idxAlpha] += custoTotal
+            // Atualização das estatísticas de um determinado alfa
+            somaRotulos[idxAlpha] += custoAtual;
             contagens[idxAlpha]++;
-
 
             if (custoAtual < minRotulosGlobais){
                 minRotulosGlobais = custoAtual;
@@ -559,27 +561,25 @@ std::string Graph::minimumLabelingSpanningTreeReatived(int maxIter = 200, int bl
             }
         }
 
-        // Processo reativido de atualização das probabilidades
+        // Processo reativo de atualização das probabilidades
         if ((i + 1) % blockSize == 0 && encontrouSolucaoValida){
             std::vector<double> qualidade(numAlphas, 0.0);
             double somaQualidade = 0.0;
 
-            for (int i = 0; i < numAlphas; i++){
-                if(contagens[i] > 0){
-                    double mediaCustos = somaRotulos[i] / contagens[i];
-
-                    qualidade[i] = (double) minRotulosGlobais/mediaCustos
+            for (int j = 0; j < numAlphas; j++){
+                if(contagens[j] > 0){
+                    double mediaCustos = somaRotulos[j] / contagens[j];
+                    qualidade[j] = (double) minRotulosGlobais / mediaCustos;
                 }
                 else {
-                    qualidade[i] = 0.0;
+                    qualidade[j] = 0.0;
                 }
-                somaQualidades += qualidade[i];
+                somaQualidade += qualidade[j];
             }
 
             // Normalização das probabilidades
-            for (int i = 0; i < numAlphas; i++)
-                prob[i] = (somaQualidade > 0) ? qualidade[i] / somaQualidade : 1.0 / numAlphas;
-            
+            for (int j = 0; j < numAlphas; j++)
+                prob[j] = (somaQualidade > 0) ? qualidade[j] / somaQualidade : 1.0 / numAlphas;
         }
     }
 
