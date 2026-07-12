@@ -526,6 +526,7 @@ std::string Graph::minimumLabelingSpanningTreeGRASP(){
 
     std::random_device rd;
     std::mt19937 gen(rd());
+    double melhorAlpha = -1.0;
 
     for (int i = 0; i < maxIter; i++) {
         // Heurística reativa
@@ -558,6 +559,7 @@ std::string Graph::minimumLabelingSpanningTreeGRASP(){
                 minRotulosGlobais = custoAtual;
                 melhorSolucaoGlobal = rotulosEscolhidos;
                 melhorArvoreGlobal = edgesFiltradas;
+                melhorAlpha = alphaAtual;
             }
         }
 
@@ -589,12 +591,8 @@ std::string Graph::minimumLabelingSpanningTreeGRASP(){
         return oss.str();
     }
     
-    oss << "Rótulos utilizados " << minRotulosGlobais << "\n";
-    oss << "Lista de rotulos escolhidos na melhor solucao: ";
-    for (int r:melhorSolucaoGlobal) oss << r << " ";
-    oss << "\nArestas componentes da arvore geradora:\n";
-    for(const auto& e : melhorArvoreGlobal)
-        oss << " (" <<e.u << " -> " << e.v << ") [Rotulo: "<< e.label << "]\n";
+    oss << "Rotulos utilizados: " << minRotulosGlobais << "\n";
+    oss << "Melhor alpha: " << melhorAlpha << "\n";
 
     return oss.str();
 }

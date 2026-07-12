@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
+#include <climits>
 
 Graph lerInstancia(string arquivo, int& numVertices, int& numArestas, int& numRotulos) {
     ifstream in(arquivo);
@@ -27,6 +28,13 @@ int extrairRotulos(const string& resultado) {
     if (pos == string::npos) return -1;
     pos += 20;
     return stoi(resultado.substr(pos));
+}
+
+double extrairAlpha(const string& resultado) {
+    size_t pos = resultado.find("Melhor alpha: ");
+    if (pos == string::npos) return -1.0;
+    pos += 14;
+    return stod(resultado.substr(pos));
 }
 
 // ============================================================
@@ -137,11 +145,121 @@ void experimento2(int numInstancias) {
     }
 }
 
+// ============================================================
+// Experimento 3: GRASP Reativo (30 execucoes por instancia)
+// ============================================================
+void experimento3(int numInstancias) {
+    int numIter = 30;
+
+    cout << "\n";
+    cout << string(60, '=') << "\n";
+    cout << "  EXPERIMENTO 3 — GRASP Reativo (" << numIter << " execucoes por instancia)\n";
+    cout << string(60, '=') << "\n";
+
+    // Tabelas de resultados
+    vector<string>  nomes(numInstancias);
+    vector<double>  mediaRotulos(numInstancias);
+    vector<double>  mediaTempo(numInstancias);
+    vector<int>     melhorRotulos(numInstancias);
+    vector<double>  melhorTempos(numInstancias);
+
+    for (int i = 1; i <= numInstancias; i++) {
+        string numero = (i < 10 ? "0" : "") + to_string(i);
+        string arquivo = "instancias/instancia" + numero + ".txt";
+        nomes[i-1] = "instancia" + numero;
+
+        int numVertices, numArestas, numRotulos;
+        Graph g = lerInstancia(arquivo, numVertices, numArestas, numRotulos);
+
+        cout << "\n" << string(60, '-') << "\n";
+        cout << "  Instancia: instancia" << numero
+             << "  |  n=" << numVertices
+             << "  m=" << numArestas
+             << "  l=" << numRotulos << "\n";
+        cout << string(60, '-') << "\n";
+        cout << left
+             << setw(8)  << "Exec"
+             << setw(12) << "Rotulos"
+             << setw(12) << "Melhor alpha"
+             << setw(14) << "Tempo (ms)"
+             << "\n";
+        cout << string(46, '-') << "\n";
+
+        double somaRot = 0, somaTmp = 0;
+        int melhor = INT_MAX;
+
+        for (int exec = 1; exec <= numIter; exec++) {
+            auto t1 = chrono::high_resolution_clock::now();
+            string resultado = g.minimumLabelingSpanningTreeGRASP();
+            auto t2 = chrono::high_resolution_clock::now();
+            double tempoMs = chrono::duration<double, milli>(t2 - t1).count();
+
+            int rotulos    = extrairRotulos(resultado);
+            double alpha   = extrairAlpha(resultado);
+
+            somaRot += rotulos;
+            somaTmp += tempoMs;
+            if (rotulos < melhor) melhor = rotulos;
+
+            cout << left
+                 << setw(8)  << exec
+                 << setw(12) << rotulos
+                 << setw(12) << fixed << setprecision(2) << alpha
+                 << setw(14) << setprecision(3) << tempoMs
+                 << "\n";
+        }
+
+        mediaRotulos[i-1] = somaRot / numIter;
+        mediaTempo[i-1]   = somaTmp / numIter;
+        melhorRotulos[i-1] = melhor;
+
+        cout << string(46, '-') << "\n";
+        cout << "  Media: rotulos=" << fixed << setprecision(2) << mediaRotulos[i-1]
+             << "  tempo=" << setprecision(3) << mediaTempo[i-1] << "ms"
+             << "  melhor=" << melhor << "\n";
+    }
+
+    // Tabela de qualidade
+    cout << "\n" << string(60, '=') << "\n";
+    cout << "  TABELA DE QUALIDADE — GRASP Reativo\n";
+    cout << string(60, '=') << "\n";
+    cout << left
+         << setw(16) << "Instancia"
+         << setw(14) << "Media rotulos"
+         << setw(14) << "Melhor"
+         << "\n";
+    cout << string(44, '-') << "\n";
+    for (int i = 0; i < numInstancias; i++) {
+        cout << left
+             << setw(16) << nomes[i]
+             << setw(14) << fixed << setprecision(2) << mediaRotulos[i]
+             << setw(14) << melhorRotulos[i]
+             << "\n";
+    }
+
+    // Tabela de tempo
+    cout << "\n" << string(60, '=') << "\n";
+    cout << "  TABELA DE TEMPO — GRASP Reativo\n";
+    cout << string(60, '=') << "\n";
+    cout << left
+         << setw(16) << "Instancia"
+         << setw(18) << "Media tempo (ms)"
+         << "\n";
+    cout << string(34, '-') << "\n";
+    for (int i = 0; i < numInstancias; i++) {
+        cout << left
+             << setw(16) << nomes[i]
+             << setw(18) << fixed << setprecision(3) << mediaTempo[i]
+             << "\n";
+    }
+}
+
 int main() {
     int numInstancias = 20;
 
     experimento1(numInstancias);
     experimento2(numInstancias);
+    experimento3(numInstancias);
 
     return 0;
 }
